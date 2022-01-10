@@ -1,0 +1,26 @@
+// trigger code
+trigger CreateRelatedContact on Account (after insert) {
+    RelatedContactHandler.relatedcontact(Trigger.New);
+}
+
+
+// Handler class code
+
+public class RelatedContactHandler {
+    public static void relatedcontact(List<Account> acclist){
+    List<Contact> conlist = new List<Contact>();
+    
+    for(Account acc : acclist){
+        
+       for(Integer i=1; i<=5; i++){
+      
+          conlist.add(new Contact(FirstName =acc.Name +'Test',
+                                 LastName = 'LastName' + i,AccountId = acc.Id));
+    
+        }
+    }
+    if(conlist.size()>0){
+        insert conlist;
+    }
+    }
+}
