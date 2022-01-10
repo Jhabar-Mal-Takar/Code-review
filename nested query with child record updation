@@ -1,0 +1,33 @@
+Important Point == Child ke record jab bhi update karthe h trigger always =after= me hi chltha h
+
+// nested query se child record list me add karwana
+or us list ko iterate krwa kar child object ke filed ko update krna
+
+// Tirgger code
+
+trigger UpdateCaseStatus on Account (after update) {
+    
+    UpdateCaseStatusHandler.UpdateCaseStatus(Trigger.New);
+}
+
+
+// Handeler class code 
+
+public class UpdateCaseStatusHandler {
+    public static void UpdateCaseStatus(List<Account> acclist){
+        
+        List<Case> updateStatus = new List<Case>();
+        
+        List<Account> acccase = [Select Id,Status__c,(Select Id, Status from Cases) from Account Where Id IN :acclist ];
+        
+       for(Account acc : acccase){
+           for(Case cs : acc.Cases){   
+                    cs.Status = acc.Status__c;
+                    //system.debug('cs---------'+cs);
+                    updateStatus.add(cs);
+          }
+        }
+   //     system.debug('updateStatus = '+updateStatus);
+        update updateStatus;
+} 
+}
