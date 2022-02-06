@@ -1,0 +1,113 @@
+<apex:page controller="VFPageController">
+    <apex:form >
+        <apex:pageMessages id="proError"> </apex:pageMessages>
+        <apex:pageBlock >
+            <!--        =========== Spinner===================== -->
+            <style>
+                .spinnerBg{
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                background-color: white;
+                opacity: 0.1;
+                z-index: 1;
+                } 
+                .spinner{
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                background-image: url("/img/loading32.gif");
+                background-size: 30px;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+                background-position: center;
+                z-index: 2;
+                opacity: 1;
+                }
+            </style>
+            
+            <!--         ================================Spinner=================================        -->
+            <apex:actionStatus id="spinnerStatus">
+                <apex:facet name="start">
+                    <div class="spinnerBg" />
+                    <div class="spinner" />
+                </apex:facet>
+            </apex:actionStatus>
+            <!--       ============================== First part of page for object select. ============================      -->
+            
+            <apex:pageBlockSection columns="1" id="pBlock">    
+                <apex:pageBlockSectionItem >
+                    <apex:outputPanel id="objectBlock">
+                        <apex:outputLabel Value="Select Object : " style="font-weight:bold;"/>
+                        <apex:selectList value="{!selectedObject}" size="1" >
+                            <apex:selectOptions value="{!options}"/>
+                            <apex:actionSupport action="{!FieldOptions}" event="onchange" reRender="secondPart,firstFieldBlock,secondpicklist,clearrightOption,objectBlock,button,processbutton"  status="spinnerStatus"/>  
+                        </apex:selectList>
+                        <apex:commandButton action="{!reset}" value="Reset" style="position: relative; left: 10px;width:65px;height:25px" status="spinnerStatus"/>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection> 
+        </apex:pageBlock>
+      </apex:form>
+   <!--  ===================================================second Part of page ========================================================   -->
+	<apex:form id="secondPart" >
+        <apex:pageBlock rendered="{!sp}">
+            <apex:pageBlockSection >
+                <apex:panelGrid columns="4">
+                    <apex:panelGroup >
+                        <apex:pageBlockSectionItem >
+                            <apex:outputpanel id="firstFieldBlock"  style=" position: relative; left: 10px; ">
+                                <apex:outputLabel value="{!$ObjectType[selectedObject].Label} Fields :- " style="font-weight:bold;"/> <br/>
+                                <apex:selectList value="{!SeletedFields}" multiselect="true" size="10" style="width: 150px;"> 
+                                    <apex:selectOptions value="{!allFields}" />
+                                    <apex:actionSupport event="onclick" action="{!addDisableEnable}" rerender="button"/>
+                                </apex:selectList>
+                            </apex:outputpanel>
+                        </apex:pageBlockSectionItem>
+                    </apex:panelGroup>
+                    <!--     =========================== Add & Remove Buttons Section =================  -->
+                    <apex:panelGroup id="button">
+                        <apex:pageBlockSectionItem >
+                            <apex:outputPanel style=" position: relative; left: 100px;top:50px; " >
+                                <apex:commandButton action="{!add}" value="  Add  " reRender="objectBlock,secondpicklist,firstFieldBlock,button,processbutton" status="spinnerStatus" style="width:70px;height:25px" disabled="{!addDisableval}" /> <br/><br/>
+                                <apex:commandButton action="{!removes}" value=" Remove " reRender="objectBlock,secondpicklist,firstFieldBlock,button,processbutton" status="spinnerStatus" style=" width:80px;height:25px" disabled="{!removeDisableVal}"/>
+                            </apex:outputPanel>
+                        </apex:pageBlockSectionItem>
+                    </apex:panelGroup>
+                    <!--     =========================== Right Picklist Section =================         -->
+                    <apex:panelGroup >
+                        <apex:pageBlockSectionItem >
+                            <apex:outputpanel id="secondpicklist"  style=" position: relative; left: 200px; ">
+                                <apex:outputLabel value="Selected Fields :- "  style="font-weight:bold;" /> <br/>
+                                <apex:selectList value="{!secondselectedFields}" multiselect="true" size="10" style="width: 150px;"> 
+                                    <apex:selectOptions value="{!rightOptions}"/>
+                                    <apex:actionSupport event="onclick" action="{!removeDisableEnable}" rerender="button"/>
+                                </apex:selectList>
+                            </apex:outputpanel>
+                        </apex:pageBlockSectionItem>
+                    </apex:panelGroup>
+                     <!--     =========================== Process Button ==============================       -->
+                    <apex:panelGroup >
+                        <apex:pageBlockSectionItem >
+                            <apex:outputPanel style=" position: relative; left: 400px; top: 150px;"  id="processbutton">  
+                                <apex:commandButton value=" Process " action="{!process}"  oncomplete="process()"  style=" width:80px;height:25px"  status="spinnerStatus" reRender="proError" disabled="{!ProcessDisableval}" />
+                            </apex:outputPanel>                                                                                                        
+                        </apex:pageBlockSectionItem>
+                    </apex:panelGroup>
+                </apex:panelGrid>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+    
+    <!-- ====================================   Start component Section ========================================   -->
+    
+    <script>
+    function process() { 
+        jsfunction();
+    }
+    </script>
+    
+     <c:VFPageComponent object="{!selectedObject}" fields="{!rightsidefieldsApiName}" >
+     </c:VFPageComponent>
+   
+</apex:page>

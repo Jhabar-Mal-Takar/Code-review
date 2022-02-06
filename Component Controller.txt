@@ -1,0 +1,326 @@
+public class VFPageComponentController {
+    public boolean rr{get;set;}  // use for rerenderd the third section of page.
+    public Boolean childCheckbox{get;set;} // master check box.
+    public Boolean masterCheckbox{get;set;} // child check box.
+    public String obj{get;set;}   // Store selected object.
+    public List<String> objfields{get;set;}  // Store object fields api name list aviable h rightside picklist box me.
+    public List<sObject> recordList{get;set;}  // Store after query object fields.
+    public  ApexPages.StandardSetController ssc {get;set;}         // Define Standard set controller reference variable. 
+    public Map<Id, WrapperClass> mapHoldingSelectedRecords{get;set;}   // make a map to store selected records.
+    Public Integer size{get;set;}      // page size.
+    public List<SelectOption> paginationSizeOptions{get;set;} // page size option list.
+    public List<String> alphabet{get;set;} //Make a string list to store alphabet.
+    
+    public VFPageComponentController(){
+        size=5;
+        paginationSizeOptions = new List<SelectOption>();
+        paginationSizeOptions.add(new SelectOption('5','5'));
+        paginationSizeOptions.add(new SelectOption('10','10'));
+        paginationSizeOptions.add(new SelectOption('20','20'));
+        paginationSizeOptions.add(new SelectOption('50','50'));
+        paginationSizeOptions.add(new SelectOption('100','100'));
+        
+        // =============== set by default sort direction ======================== 
+        if(sortDir == null ){
+            sortDir = 'asc';
+        }
+        
+        // --------------inislize the alphabetlist.
+        alphabet = new list<string>{'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','Others','All'}; 
+            
+            // ---------------------initialize the map.
+            mapHoldingSelectedRecords = new Map<Id, WrapperClass>();
+    }
+    
+    
+    //========================================Dynamic Query Method. ==================================
+    
+    String fqry;
+    public void queryMethod(){
+        rr = true;
+        try{
+            recordList = new List<sObject>();
+            String qry = 'Select ';
+            integer count = 0;
+            for(String f : objfields){
+                if(count == 0){
+                    qry += f ;
+                    count++;
+                }
+                else{
+                    qry += ' ,'+ f ; 
+                }
+            }
+            qry += ' from ' + obj;
+            
+            fqry = String.escapeSingleQuotes(qry);
+            ssc = new ApexPages.StandardSetController(Database.query(fqry));
+            ssc.setPageSize(size);             // ==============================   this line set the default page size.
+            TotalPage();  
+            recordList = ssc.getRecords();
+            System.debug('ssc :'+ ssc);
+            System.debug(recordList);
+        }
+        catch(Exception e){
+            System.debug('The Error is : '+e);
+        }
+        wrapperlist();
+    }
+    
+    // =================================    wrapper class type list initiazation  =========================================
+    
+    public List<WrapperClass> wrapperRecordList{get;set;} 
+    public void wrapperlist(){
+        wrapperRecordList = new  List<WrapperClass>();
+        for(sObject Record : recordList){
+            if(mapHoldingSelectedRecords != null && mapHoldingSelectedRecords.containsKey(Record.id)){
+                wrapperRecordList.add(mapHoldingSelectedRecords.get(Record.id));
+            }
+            else{
+                wrapperRecordList.add(new wrapperClass(Record,false));
+            }
+        }
+        System.debug('Wrapper recoord list _' +wrapperRecordList);
+    }
+    // =========================== Set the PageSize to display recrods on page ===========================================
+    
+    public void refreshPageSize() {
+        updateSearchItemsMap();    // refersh the page size than checkbox is maintain this resion call the method.
+        System.debug('size = '+size);
+        ssc.setPageSize(size);
+        recordList = ssc.getRecords();
+        wrapperlist();
+        TotalPage();
+        System.debug('total page in recrod list '+Totalpages);
+        
+    }
+    
+    
+    // =================  Delete the record form the page =============================
+    
+    public void Deletes(){
+        Id id = System.currentPageReference().getParameters().get('id');
+        System.debug(id);
+        Database.delete(id);
+        queryMethod();        
+    }
+    
+    //=======================================================Sorting Methods ==============================================================
+    public string sortField{get;set;}
+    
+    public String sortDir{get;set;}
+    
+    public void toggleSort(){
+        //   recordlist.clear();      because recordlist is readonly. not clear this list.
+        wrapperRecordList.clear();
+        if(sortField == null){
+            sortField = 'Name';
+        }
+        sortDir = sortDir.equals('asc') ? 'desc' : 'asc';
+        ssc = new ApexPages.StandardSetController(Database.query(fqry+ ' order by ' + sortField + ' ' + sortDir));
+        ssc.setPageSize(size);// ==============================   after query  page size set.
+        TotalPage();
+        recordList = ssc.getRecords();
+        wrapperlist();
+    } 
+    
+    //====================================    Aphabet search Methord ==========================================
+    
+    public string alphaSearchValue{get;set;}
+    public void alphaSearch(){
+        System.debug('hello from alphabat all');
+        if(sortField == null){
+            sortField = 'Name';
+        }
+        
+        if(alphaSearchValue == 'All'){
+            ssc = new ApexPages.StandardSetController(Database.query(fqry));
+            ssc.setPageSize(size);// ==============================   after query  page size set.
+            TotalPage();
+            recordList = ssc.getRecords();
+            wrapperlist();
+        }
+        else if(alphaSearchValue == 'Others'){
+            ssc = new ApexPages.StandardSetController(Database.query(fqry+' Where '+ sortField + '<=\'a\'' + ' OR ' + sortField + '<=\'0\''));
+            ssc.setPageSize(size);// ==============================   after query  page size set.
+            TotalPage();
+            recordList = ssc.getRecords();
+            wrapperlist();
+        }
+        else{
+            String searchVar =  alphaSearchValue;
+            ssc = new ApexPages.StandardSetController(Database.query(fqry+' Where '+ sortField +  ' Like \'' +  searchVar + '%\''));
+            ssc.setPageSize(size);// ==============================   after query  page size set.
+            TotalPage();
+            recordList = ssc.getRecords();
+            wrapperlist();
+        }
+    }  
+    // ==================================== Current page number & totalpage No. ======================================================
+    
+    /** returns the page number of the current page set*/
+    
+    public Integer PageNum{get;set;}
+    public void frpageNumber() {
+        System.debug('Hello form frpageNumber Method');
+        ssc.setPageNumber(PageNum);
+        System.debug('After page number set - '+ssc.getPageNumber());
+        recordList = ssc.getRecords();
+        wrapperlist();
+    }
+    
+    /** return total number of pages for page set*/
+    
+    Public Integer Totalpages{get;set;}
+    
+    Public void TotalPage(){
+        Decimal totalSize = ssc.getResultSize();
+        Decimal pageSize = ssc.getPageSize();
+        Decimal pages = totalSize/pageSize;
+        Totalpages = (Integer)pages.round(System.RoundingMode.CEILING);
+    }
+    
+    
+    
+    //===========================1. First 2.Last 3.Next 4. Previous Methods. ===============================
+    
+    /** returns the first page of the page set*/
+    
+    public void first() {
+        updateSearchItemsMap();
+        ssc.first();
+        recordList = ssc.getrecords();
+        wrapperlist();  
+    }
+    
+    /** returns the last page of the page set*/
+    
+    public void last() {
+        updateSearchItemsMap();
+        ssc.last();
+        recordList = ssc.getrecords();
+        wrapperlist();
+    }
+    
+    /** returns the previous page of the page set*/
+    
+    public void previous() {
+        updateSearchItemsMap();
+        ssc.previous();
+        recordList = ssc.getrecords();
+        wrapperlist();
+    }
+    
+    /** returns the next page of the page set*/
+    
+    public void next() {
+        updateSearchItemsMap();
+        ssc.next();
+        recordList = ssc.getrecords();
+        wrapperlist();
+    }
+    
+    //====================   This is the method which manages to remove the deselected records, and keep the records which are selected in map.
+    
+    public void updateSearchItemsMap(){
+        for(WrapperClass wrp : wrapperRecordList){
+            if(wrp.checkbox){
+                mapHoldingSelectedRecords.put(wrp.Record.id, wrp);
+            }
+            if(wrp.checkbox == false && mapHoldingSelectedRecords.containsKey(wrp.Record.id)){
+                System.debug('remove values.'+ wrp.Record.id);
+                mapHoldingSelectedRecords.remove(wrp.Record.id);
+            }
+        }
+    }
+    
+    // ====================================== Delete Selected Record ========================================================
+    public list<Id> selectedIds;
+    public void deleteSelectedRecord(){
+        selectedIds = new list<Id>();
+        for(WrapperClass var : wrapperRecordList){ 
+            if(var.checkbox == true){
+                selectedIds.add(var.Record.id);
+            }
+        }
+        try{
+            if(selectedIds.size() >0){
+                Database.delete(selectedIds);
+                ApexPages.addmessage(new ApexPages.message(ApexPages.severity.CONFIRM,'Record successfully deleted.'));
+            }
+            else{
+                ApexPages.addmessage(new ApexPages.message(ApexPages.severity.Info,'Please Select at least one record for Delete.'));
+            }
+        }
+        catch(Exception e){
+            ApexPages.addmessage(new ApexPages.message(ApexPages.severity.WARNING,' Oops Not deleted.  '+e));
+        }
+        queryMethod();
+    }
+    
+    // ======================================= Method for make string for csv downoad ============================================
+    
+    public String fString;
+    public String fTemp{get;set;}
+    
+    public list<sObject> holdSelectedRecord{get;set;}
+    public void csvString(){
+        holdSelectedRecord = new list<sObject>();
+        
+        //========================================== getting selected record into the list. =================================
+        for(WrapperClass var : wrapperRecordList){ 
+            if(var.checkbox == true){
+                holdSelectedRecord.add(var.Record);
+            }
+        }
+         
+          String fString = '';    
+            for(Integer i=0; i<objfields.size(); i++){
+                String temp = '';
+                temp = objFields[i]; 
+                fString = fString + temp;
+                if(objfields.size() -1 != i){
+                    fString = fString + ',';
+                }
+            }
+            fString = fString + '\\n';
+            
+            System.debug('The field name final string for csv = '+ fString);
+            
+           
+            
+            System.debug('--------------------------------------------'+holdSelectedRecord);
+            
+            for(sObject records : holdSelectedRecord){
+                for(String ff : objFields){
+                    // fString = fString + (String)records.get(ff);
+                    fString = fString + String.valueOf(records.get(ff));
+                    fString = fString + ',';
+                }
+                fString = fString.substring(0,fString.length()-1);
+                fString = fString + '\\n';
+            }
+            System.debug('After adding the records------------'+ fString);
+            
+            fTemp = fString;
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    // =========================================== Create a Wrapper class ================================================================
+    
+    
+    public class WrapperClass {
+        public Boolean checkbox {get;set;}
+        public sObject Record {get;set;}
+        public WrapperClass(sObject Record, Boolean checkBox) {
+            this.Record = Record;
+            this.checkbox = checkbox;
+        }
+    }       
+}

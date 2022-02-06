@@ -1,0 +1,230 @@
+public class VFPageController {
+    public boolean sp{get;set;}  // purpose rerender second part.
+    public boolean show_Record{get;set;}  // for rerendered purpose.
+    Map<String, Schema.SObjectType> objmap;//Store object map.
+    public List<SelectOption> options{get;set;}//all object option  list.
+    public  String selectedObject{get;set;} // Store selected record.
+    
+    // ========== standard set controller supported standard object list retrive from custom component.
+    public List<String> objectlist; 
+    
+    //============== received multiple selected field  values into the selectedFields;
+    public List<String> SeletedFields{get;set;}  //==> Do not need for initialize. but you want initailize ==> initialize into the SelectedFields.
+    
+    
+    // Store all object fields vaues into the all object list.
+    public List<SelectOption> allFields{get;set;}
+    
+    // Store selectedfields into the selectedfields getter setter type variable.
+    public List<String> selectedfields{get;set;}
+    
+    // Store right multiselect picklist selected values  its values remove rightside & add into left side. 
+    public List<String> removefields{get;set;}
+    
+    //================Describe selected object fieldmap 
+    public Map<String, Schema.SObjectField> fieldmap;
+    
+    // ===================Store fields on right side multiselect picklist.
+    public List<SelectOption> rightOptions{get;set;}
+    
+    // ====================== store selected options values from right side multiselect picklist;
+    public List<String> secondselectedFields{get;set;}   //==> Do not need for initialize. but you want initailize ==> initialize into the SelectedFields.
+    
+    // api name string type list of all left side fields.
+    public List<String> rightsidefieldsApiName{get;set;}
+    //==================================================== Boolean variables for disable buttons Add Remove or Process
+    public boolean addDisableval{get;set;}
+    public boolean RemoveDisableval{get;set;}
+    public boolean ProcessDisableval{get;set;}
+    
+    // ============================= Call constructor when page load and get object name list.
+    
+    public  VFPageController(){
+        objectlist = new List<String>();
+        options = new List<Selectoption>();
+        String str = System.Label.Supported_Objects;
+        objectlist = str.split(',');
+        objmap = Schema.getGlobalDescribe();
+        options.add(new SelectOption('-None-','-None-'));
+        for(Schema.SObjectType thisObj : objmap.values()) {
+            Schema.DescribeSObjectResult dsr = thisObj.getDescribe();
+            if(objectlist.contains(dsr.getLabel()) || dsr.getName().endsWith('__c') && dsr.isQueryable()){
+                options.add(new SelectOption((dsr.getName()),(dsr.getLabel())));
+            }
+        }
+        options.sort();
+        // ===========initialize all lists.
+        allFields = new List<SelectOption>();
+        allFields.add(new SelectOption('-None-','-None-', true));
+        rightOptions = new List<SelectOption>();
+        rightOptions.add(new SelectOption('-None-','-None-', true));
+        
+        /////=========================
+        rightsidefieldsApiName = new  List<String>();      // right side box fields api name list. 
+        // ===========================================
+        // boolean type sp value initiaize
+        sp = false;
+    }
+    
+    // ======================== Reset the all page.
+    
+    public PageReference reset() {
+        PageReference newpage = new PageReference(System.currentPageReference().getURL());
+        newpage.setRedirect(true);
+        return newpage;
+    }
+    
+    // ==========================  get all object field into the left multiselect picklist.
+    
+    public void FieldOptions(){
+        sp = true;  //using sp value rerenderd the second block of page.
+        addDisableval = true;  // for add button first time disable
+        RemoveDisableval = true; // for remove button first time disable.
+        ProcessDisableval = true; // for first time process button is make disable.
+        allFields.clear();
+        rightOptions.clear();
+        rightsidefieldsApiName.clear();
+        if(selectedObject != null && selectedObject != '-None-') {
+            
+ // ============================================================ Disable object picklist none option when field is selected.
+            for(SelectOption var : options){
+                if(var.getLabel() == '-None-'){
+                    var.setDisabled(true);
+                }
+            }
+//============================================================================================
+            fieldMap = Schema.getGlobalDescribe().get(selectedObject).getDescribe().fields.getMap();
+            
+            for(Schema.sObjectField sField:  fieldMap.values()){
+                Schema.DescribeFieldResult res = sField.getDescribe();
+                if(res.isUpdateable() && res.isAccessible() && res.isSortable() ){ 
+                    allFields.add(new SelectOption(res.getName(), res.getLabel()));
+                }
+            }
+        }
+       // allFields.sort();
+       sortSelectOption();
+    }
+    // ========================== select Option list label  base sorting.=====================================
+    
+    public map<String,SelectOption> maplist; 
+    
+    public void sortSelectOption(){
+        maplist = new map<String,SelectOption>();
+        for(SelectOption opt : allfields){
+            maplist.put((opt.getLabel()),opt);
+        }
+        List<String> sortKeys = new List<String>();
+        sortKeys.addAll(maplist.keySet());
+        sortKeys.sort();    // sort keyset of labels in map.
+        allfields.clear();  // clear the selet Option list old collection & rebuild it.
+        for(String key : sortKeys){   
+             allfields.add(maplist.get(key));
+        }
+    }
+    
+    //========================== Calling the add method to add values leftpicklist to rightpicklist picklist.
+    
+    public void add(){
+        if(SeletedFields != null){
+            for(String ss : SeletedFields){
+                Schema.DescribeFieldResult fieldRes = fieldMap.get(ss).getDescribe();             
+                rightOptions.add(new SelectOption(String.valueOf(fieldRes.getName()),String.valueOf(fieldRes.getLabel())));
+                rightsidefieldsApiName.add(String.valueOf(fieldRes.getName())); //======================= right side box fields api name list.
+                rightOptions.sort();
+               // sortRightOption();
+                for(integer i=0; i<allFields.size(); i++){
+                    if(allFields[i].getValue() == ss){
+                        allFields.remove(i);
+                    }
+                }
+            }
+            System.debug(allFields);
+            SeletedFields.clear();
+            addDisableEnable();
+            processDisableEnable();
+        }
+    }
+    
+//================================  right side option sorting method ==================================
+    public map<String,SelectOption> maplist1; 
+    public void sortRightOption(){
+        maplist1 = new map<String,SelectOption>();
+        maplist1.clear();
+        for(SelectOption opt : rightOptions){
+            maplist1.put((opt.getLabel()),opt);
+        }
+        List<String> sortKeys = new List<String>();
+        sortKeys.addAll(maplist1.keySet());
+        sortKeys.sort();    // sort keyset of labels in map.
+        if(rightOptions == null){
+        rightOptions.clear();  // clear the select Option list old collection & rebuild it.
+        }
+        for(String key : sortKeys){   
+             rightOptions.add(maplist.get(key));
+        }
+    }
+    
+// ============================ Remove button method =============================================================   
+    
+    public void removes(){
+        if(secondselectedFields != null){
+            for(String ss : secondSelectedFields){
+                Schema.DescribeFieldResult fieldRes1 = fieldMap.get(ss).getDescribe();
+                allfields.add(new SelectOption(String.valueOf(fieldRes1.getName()),String.valueOf(fieldRes1.getLabel())));               
+                sortSelectOption();  // sorting after remove on right side & add on left side.
+                for(integer i=0; i<rightOptions.size(); i++){
+                    if(rightOptions[i].getValue() == ss){
+                        rightOptions.remove(i);
+                        rightsidefieldsApiName.remove(i);
+                        i--;
+                    }
+                }
+            }
+            secondselectedFields.clear();
+            removeDisableEnable();
+            processDisableEnable();
+        }
+    }
+    
+    // ====== add disable Enable method.
+    public void addDisableEnable(){
+        if(seletedFields.size() > 0 ){
+            addDisableval = false;
+        }
+        else{
+            addDisableval = true;
+        }
+        
+    }
+    //=========  remove disable Enable method.
+    public void removeDisableEnable(){
+        if(secondselectedFields.size() > 0){
+            removeDisableVal = false;
+        }
+        else{
+            removeDisableVal = true;
+        }
+        
+    }
+    //========= Process button disable enable method.
+    public void processDisableEnable(){
+        System.debug('hello form processDisableEnable Method');
+        if(rightOptions.size() > 0){
+            ProcessDisableval = false;
+        }
+        else{
+            ProcessDisableval = true;
+        }
+        System.debug('processDisableval--------'+ ProcessDisableval	);
+    }
+    //============================= remove fields rightside picklist & add into the left side picklist.
+    
+    
+    
+    public  void process(){
+        System.debug('selectedObject  : '+selectedObject);
+        System.debug('rightOptions  :'+rightOptions);
+        System.debug('rightsidefieldsApiName :' + rightsidefieldsApiName);
+    }
+}
